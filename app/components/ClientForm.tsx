@@ -1,0 +1,324 @@
+// components/ClientForm.tsx
+"use client";
+
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { format } from "date-fns";
+import { Client } from "../types/types";
+
+interface FormValues {
+  businessName: string;
+  ownerName: string;
+  phone: string;
+  email: string;
+  status: "activo" | "inactivo" | "pendiente";
+  planType: "mensual" | "anual" | "permanente";
+  saleDate: string;
+  paymentDate: string;
+}
+
+interface ClientFormProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (data: Omit<Client, "id">) => void;
+  initialData?: FormValues;
+}
+
+export default function ClientForm({
+  isOpen,
+  onClose,
+  onSubmit,
+  initialData,
+}: ClientFormProps) {
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+    clearErrors,
+  } = useForm<FormValues>();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    return () => {
+      // Limpiar el formulario cuando el componente se desmonta
+      reset();
+      clearErrors();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (initialData) {
+        reset(initialData);
+      } else {
+        reset({
+          businessName: "",
+          ownerName: "",
+          phone: "",
+          email: "",
+          status: "activo",
+          planType: "mensual",
+          saleDate: format(new Date(), "yyyy-MM-dd"),
+          paymentDate: format(new Date(), "yyyy-MM-dd"),
+        });
+      }
+      // Limpiar errores cada vez que se abre el modal
+      clearErrors();
+    }
+  }, [isOpen, initialData, reset, clearErrors]);
+
+  const handleFormSubmit = (data: FormValues) => {
+    // Crear fechas en UTC para evitar problemas de zona horaria
+    const createUTCDate = (dateString: string) => {
+      const [year, month, day] = dateString.split("-").map(Number);
+      return new Date(year, month - 1, day);
+    };
+
+    const clientData: Omit<Client, "id"> = {
+      ...data,
+      saleDate: createUTCDate(data.saleDate),
+      paymentDate: createUTCDate(data.paymentDate),
+    };
+    onSubmit(clientData);
+  };
+
+  if (!isMounted) return null;
+  const handleClickOutside = (e: React.MouseEvent) => {
+    // Verificar si el click proviene de una selección de texto
+    const selection = window.getSelection();
+    if (!selection || selection.toString().length === 0) {
+      if (e.target === e.currentTarget) {
+        onClose();
+      }
+    }
+  };
+
+  return (
+    <div
+      className={`text-black fixed inset-0 z-50 ${
+        isOpen ? "flex" : "hidden"
+      } items-center justify-center p-4`}
+      onClick={handleClickOutside}
+    >
+      {/* Fondo oscuro */}
+      <div className="fixed inset-0 bg-black/50" />
+
+      {/* Contenedor del modal */}
+      <div
+        className="relative w-full max-w-md bg-white rounded-lg shadow-xl min-w-[40rem]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Encabezado */}
+        <div className="flex justify-between items-center p-4 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900">
+            {initialData ? "Editar Cliente" : "Agregar Nuevo Cliente"}
+          </h3>
+        </div>
+
+        {/* Formulario */}
+        <form
+          onSubmit={handleSubmit(handleFormSubmit)}
+          className="p-4 space-y-4"
+        >
+          <div>
+            <label
+              htmlFor="businessName"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Nombre de la Empresa/Negocio
+            </label>
+            <input
+              id="businessName"
+              type="text"
+              {...register("businessName", {
+                required: "Este campo es requerido",
+              })}
+              className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
+                errors.businessName ? "border-red-500" : "border"
+              }`}
+            />
+            {errors.businessName && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.businessName.message}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label
+              htmlFor="ownerName"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Nombre del Dueño
+            </label>
+            <input
+              id="ownerName"
+              type="text"
+              {...register("ownerName", {
+                required: "Este campo es requerido",
+              })}
+              className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
+                errors.ownerName ? "border-red-500" : "border"
+              }`}
+            />
+            {errors.ownerName && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.ownerName.message}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label
+              htmlFor="phone"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Teléfono
+            </label>
+            <input
+              id="phone"
+              type="tel"
+              {...register("phone", { required: "Este campo es requerido" })}
+              className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
+                errors.phone ? "border-red-500" : "border"
+              }`}
+            />
+            {errors.phone && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.phone.message}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              {...register("email", {
+                pattern: {
+                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                  message: "Email inválido",
+                },
+              })}
+              className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
+                errors.email ? "border-red-500" : "border"
+              }`}
+            />
+            {errors.email && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.email.message}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label
+              htmlFor="status"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Estado del Cliente
+            </label>
+            <select
+              id="status"
+              {...register("status")}
+              className="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+            >
+              <option value="activo">Activo</option>
+              <option value="inactivo">Inactivo</option>
+              <option value="pendiente">Pendiente</option>
+            </select>
+          </div>
+
+          <div>
+            <label
+              htmlFor="planType"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Tipo de Plan
+            </label>
+            <select
+              id="planType"
+              {...register("planType")}
+              className="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+            >
+              <option value="mensual">Mensual</option>
+              <option value="anual">Anual</option>
+              <option value="permanente">Permanente</option>
+            </select>
+          </div>
+
+          <div>
+            <label
+              htmlFor="saleDate"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Fecha de Venta
+            </label>
+            <input
+              id="saleDate"
+              type="date"
+              {...register("saleDate", { required: "Este campo es requerido" })}
+              className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
+                errors.saleDate ? "border-red-500" : "border"
+              }`}
+            />
+            {errors.saleDate && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.saleDate.message}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label
+              htmlFor="paymentDate"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Fecha de Cobro
+            </label>
+            <input
+              id="paymentDate"
+              type="date"
+              {...register("paymentDate", {
+                required: "Este campo es requerido",
+              })}
+              className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
+                errors.paymentDate ? "border-red-500" : "border"
+              }`}
+            />
+            {errors.paymentDate && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.paymentDate.message}
+              </p>
+            )}
+          </div>
+
+          {/* Botones */}
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="cursor-pointer px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="cursor-pointer px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {initialData ? "Actualizar" : "Guardar"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
