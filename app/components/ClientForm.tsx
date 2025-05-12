@@ -1,27 +1,14 @@
-// components/ClientForm.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { format } from "date-fns";
-import { Client } from "../types/types";
-
-interface FormValues {
-  businessName: string;
-  ownerName: string;
-  phone: string;
-  email: string;
-  status: "activo" | "inactivo" | "pendiente";
-  planType: "mensual" | "anual" | "permanente";
-  saleDate: string;
-  paymentDate: string;
-}
+import { Client, ClientFormValues } from "../types/types";
 
 interface ClientFormProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: Omit<Client, "id">) => void;
-  initialData?: FormValues;
+  initialData?: ClientFormValues;
 }
 
 export default function ClientForm({
@@ -36,13 +23,14 @@ export default function ClientForm({
     reset,
     formState: { errors },
     clearErrors,
-  } = useForm<FormValues>();
+  } = useForm<ClientFormValues>();
   const [isMounted, setIsMounted] = useState(false);
+
+  // Convertir Client a ClientFormValues
 
   useEffect(() => {
     setIsMounted(true);
     return () => {
-      // Limpiar el formulario cuando el componente se desmonta
       reset();
       clearErrors();
     };
@@ -50,43 +38,38 @@ export default function ClientForm({
 
   useEffect(() => {
     if (isOpen) {
-      if (initialData) {
-        reset(initialData);
-      } else {
-        reset({
-          businessName: "",
-          ownerName: "",
-          phone: "",
-          email: "",
+      reset(
+        initialData || {
           status: "activo",
           planType: "mensual",
-          saleDate: format(new Date(), "yyyy-MM-dd"),
-          paymentDate: format(new Date(), "yyyy-MM-dd"),
-        });
-      }
-      // Limpiar errores cada vez que se abre el modal
+        }
+      );
       clearErrors();
     }
   }, [isOpen, initialData, reset, clearErrors]);
 
-  const handleFormSubmit = (data: FormValues) => {
-    // Crear fechas en UTC para evitar problemas de zona horaria
-    const createUTCDate = (dateString: string) => {
-      const [year, month, day] = dateString.split("-").map(Number);
-      return new Date(year, month - 1, day);
+  const handleFormSubmit = (data: ClientFormValues) => {
+    const adjustForTimezone = (dateString: string) => {
+      const date = new Date(dateString);
+      return new Date(date.getTime() + date.getTimezoneOffset() * 60000);
     };
 
     const clientData: Omit<Client, "id"> = {
-      ...data,
-      saleDate: createUTCDate(data.saleDate),
-      paymentDate: createUTCDate(data.paymentDate),
+      businessName: data.businessName,
+      ownerName: data.ownerName,
+      phone: data.phone,
+      email: data.email,
+      status: data.status,
+      planType: data.planType,
+      saleDate: adjustForTimezone(data.saleDate),
+      paymentDate: adjustForTimezone(data.paymentDate),
     };
     onSubmit(clientData);
   };
 
   if (!isMounted) return null;
+
   const handleClickOutside = (e: React.MouseEvent) => {
-    // Verificar si el click proviene de una selección de texto
     const selection = window.getSelection();
     if (!selection || selection.toString().length === 0) {
       if (e.target === e.currentTarget) {
@@ -102,22 +85,17 @@ export default function ClientForm({
       } items-center justify-center p-4`}
       onClick={handleClickOutside}
     >
-      {/* Fondo oscuro */}
       <div className="fixed inset-0 bg-black/50" />
-
-      {/* Contenedor del modal */}
       <div
         className="relative w-full max-w-md bg-white rounded-lg shadow-xl min-w-[40rem]"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Encabezado */}
         <div className="flex justify-between items-center p-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">
             {initialData ? "Editar Cliente" : "Agregar Nuevo Cliente"}
           </h3>
         </div>
 
-        {/* Formulario */}
         <form
           onSubmit={handleSubmit(handleFormSubmit)}
           className="p-4 space-y-4"
@@ -228,6 +206,7 @@ export default function ClientForm({
             </label>
             <select
               id="status"
+              defaultValue={initialData?.status || "activo"}
               {...register("status")}
               className="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
             >
@@ -246,6 +225,7 @@ export default function ClientForm({
             </label>
             <select
               id="planType"
+              defaultValue={initialData?.planType || "mensual"}
               {...register("planType")}
               className="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
             >
@@ -301,7 +281,6 @@ export default function ClientForm({
             )}
           </div>
 
-          {/* Botones */}
           <div className="flex justify-end gap-3 pt-4">
             <button
               type="button"

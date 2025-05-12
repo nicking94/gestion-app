@@ -1,4 +1,3 @@
-// app/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -9,6 +8,7 @@ import ClientTable from "./components/ClientTable";
 import ClientForm from "./components/ClientForm";
 import logo from "../public/images/logo.png";
 import Image from "next/image";
+import ImportExportButtons from "./components/ImportExportButtons";
 
 export default function Home() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -16,7 +16,18 @@ export default function Home() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Cargar clientes desde Dexie al iniciar
+  const refreshClients = async () => {
+    setIsLoading(true);
+    try {
+      const allClients = await db.clients.toArray();
+      setClients(allClients);
+    } catch (error) {
+      console.error("Error refreshing clients:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     const loadClients = async () => {
       try {
@@ -34,14 +45,21 @@ export default function Home() {
 
   const handleAddClient = async (formData: Omit<Client, "id">) => {
     try {
-      const id = await db.clients.add({
+      // Aseguramos que las fechas son Date
+      const clientToAdd = {
         ...formData,
-        // Las fechas ya vienen como objetos Date correctos desde ClientForm
-        saleDate: formData.saleDate,
-        paymentDate: formData.paymentDate,
-      });
+        saleDate:
+          formData.saleDate instanceof Date
+            ? formData.saleDate
+            : new Date(formData.saleDate),
+        paymentDate:
+          formData.paymentDate instanceof Date
+            ? formData.paymentDate
+            : new Date(formData.paymentDate),
+      };
 
-      setClients([...clients, { ...formData, id: id as number }]);
+      const id = await db.clients.add(clientToAdd);
+      setClients([...clients, { ...clientToAdd, id: id as number }]);
       setIsFormOpen(false);
     } catch (error) {
       console.error("Error adding client:", error);
@@ -52,16 +70,24 @@ export default function Home() {
     if (!editingClient?.id) return;
 
     try {
-      await db.clients.update(editingClient.id, {
+      const clientToUpdate = {
         ...formData,
-        saleDate: formData.saleDate,
-        paymentDate: formData.paymentDate,
-      });
+        saleDate:
+          formData.saleDate instanceof Date
+            ? formData.saleDate
+            : new Date(formData.saleDate),
+        paymentDate:
+          formData.paymentDate instanceof Date
+            ? formData.paymentDate
+            : new Date(formData.paymentDate),
+      };
+
+      await db.clients.update(editingClient.id, clientToUpdate);
 
       setClients(
         clients.map((client) =>
           client.id === editingClient.id
-            ? { ...formData, id: editingClient.id }
+            ? { ...clientToUpdate, id: editingClient.id }
             : client
         )
       );
@@ -112,7 +138,7 @@ export default function Home() {
             Universal Web - Gestión de Clientes
           </h1>
         </header>
-
+        <ImportExportButtons onImportSuccess={refreshClients} />
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-gray-700">
             Lista de Clientes
@@ -147,12 +173,7 @@ export default function Home() {
           initialData={
             editingClient
               ? {
-                  businessName: editingClient.businessName,
-                  ownerName: editingClient.ownerName,
-                  phone: editingClient.phone,
-                  email: editingClient.email,
-                  status: editingClient.status,
-                  planType: editingClient.planType,
+                  ...editingClient,
                   saleDate: format(editingClient.saleDate, "yyyy-MM-dd"),
                   paymentDate: format(editingClient.paymentDate, "yyyy-MM-dd"),
                 }
